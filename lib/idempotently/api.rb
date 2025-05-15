@@ -16,6 +16,6 @@ module Idempotently
   module_function
 
   def idempotently(idempotency_key, context:, &operation)
-    Idempotently::Configuration.executors[context].execute(idempotency_key, &operation)
+    Idempotently::Executor.for(context).execute(idempotency_key, &operation)
   end
 end
