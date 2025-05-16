@@ -1,28 +1,41 @@
 # Idempotently
 
-TODO: Delete this and the text below, and describe your gem
+A focused, extensible Ruby library to help teams write safe, idempotent operations around side-effecting code — especially in distributed systems, messaging pipelines, and service integrations.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/idempotently`. To experiment with that code, run `bin/console` for an interactive prompt.
+## 🚀 Elevator Pitch
 
-## Installation
+**Idempotently** gives you a simple API to wrap operations that must run **at most once**, even in the presence of multiple invocations, because of retries, or duplicate events. At most once guarantees are applied within a *configurable idempotency window*.
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+## 🧩 Usage
 
-Install the gem and add to the application's Gemfile by executing:
+```ruby
+require "idempotently"
+require "idempotently/storage/redis_adapter"
 
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+# Put the following into your app's configuration
+Idempotently::ExecutorRegistry
+  .register(:email, 
+            window: 3600, # 1 hour of idempotency window
+            storage: Idempotently::Storage::RedisAdapter.new(redis_url: ENV['REDIS_URL']),
+            logger: Logger.new($stdout))
+
+
+class EmailProcessor < MessageProcessor
+  include Idempotently
+
+  def process
+    idempotently(message.message_id, context: :email) do 
+      deliver_email(payload.email)
+    end
+  end
+end
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
-```
 
-## Usage
+## Guarantees
 
-TODO: Write usage instructions here
+TODO:
 
 ## Development
 
