@@ -2,9 +2,7 @@
 
 A focused, extensible Ruby library to help teams write safe, idempotent operations around side-effecting code — especially in distributed systems, messaging pipelines, and service integrations.
 
-## 🚀 Elevator Pitch
-
-**Idempotently** gives you a simple API to wrap operations that must run **at most once**, even in the presence of multiple invocations, because of retries, or duplicate events. At most once guarantees are applied within a *configurable idempotency window*.
+It provides a simple API to wrap operations that must run **at most once**, even in the presence of multiple invocations, because of retries, or duplicate events. At most once guarantees are applied within a *configurable idempotency window*.
 
 ## 🧩 Usage
 
@@ -20,6 +18,7 @@ Idempotently::ExecutorRegistry
             logger: Logger.new($stdout))
 
 
+# Assuming this is used in a message processor
 class EmailProcessor < MessageProcessor
   include Idempotently
 
@@ -30,7 +29,6 @@ class EmailProcessor < MessageProcessor
   end
 end
 ```
-
 
 
 ## Guarantees
