@@ -30,10 +30,24 @@ class EmailProcessor < MessageProcessor
 end
 ```
 
+## Guidelines on finding suitable configuration options
 
-## Guarantees
+The most obvious question is how to pick the idempotency window.
+The trade-off here is safety vs. storage requirements. The bigger the idempotency window, the more data has to be stored.
+Which value you want to pick thus depends on:
 
-TODO:
+1. the rate of operations that you want to make idempotent
+2. the maxium amount of memory you have for your storage
+3. the probability of duplicate executions
+
+From these points, the third one needs a bit more explanation.
+It is not uncommon that operations are triggered by events in a distributed system, for example via a messaging system like RabbitMQ or Kafka.
+In this case the probability of seeing the same messages, that act as a trigger twice, decreases with the TTL of the message, as well as system settings that control
+how long transient messages are kept in flight. These can be useful indicators to pick a proper window.
+
+If you want to play it safe, you can always react domain specific in the event of reprocessing of an operation, by examaning the previous state in
+the block of the operation. Defensive implementations will not execute again and create useful logs or metrics to be informed.
+
 
 ## Development
 
