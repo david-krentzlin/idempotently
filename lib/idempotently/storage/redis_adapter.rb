@@ -4,14 +4,15 @@ require 'redis'
 
 module Idempotently
   module Storage
-    # Redis storage adapter for Idempotently.
+    # Redis storage adapter
     #
-    # The state is modelled as a u64 bitfield which encodes both the
-    # timestamp and the current status.
+    #
+    # The state is modelled as a u64 big-endian bitfield which encodes both the timestamp and the current status.
+    # This gives us a compact representation for the state, that can be set atomically.
     #
     # The lower u8 are interepreted as the state (started, succeeded, failed).
     # The uper u56 are interpreted as the timestamp.
-    # This gives us 64 bits in big endian.
+    #
     class RedisAdapter < Adapter
       DEFAULT_REDIS_OPTS = {
         url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
