@@ -8,8 +8,11 @@ class TestRedisAdapter < Minitest::Test
   REDIS_URL = 'redis://localhost:6379/1'
 
   def teardown
-    redis = Redis.new(url: REDIS_URL)
     redis.flushall
+  end
+
+  def redis
+    Redis.new(url: REDIS_URL)
   end
 
   def test_fetch_or_create_creates_new_state_in_started
@@ -90,5 +93,18 @@ class TestRedisAdapter < Minitest::Test
 
     assert_equal Idempotently::Storage::Status::FAILED, updated_state.status
     assert_equal 1234, updated_state.timestamp
+  end
+
+  def test_namespace_works_correctly
+    clock = TestClock.new
+    adapter = Idempotently::Storage::RedisAdapter.new(namespace: 'test', redis_opts: { url: REDIS_URL }, clock: clock)
+    key = idempotency_key
+
+    state, = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
+
+    assert_equal Idempotently::Storage::Status::STARTED, state.status
+
+    raw_value = redis.get("test:#{key}")
+    assert raw_value
   end
 end

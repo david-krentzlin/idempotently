@@ -84,8 +84,8 @@ module Idempotently
 
         value = operation.call(existed ? state : nil)
 
-        # This might still fail. This will leave the status in started, hence prevening another run later,
-        # but the state will not match reality.
+        # This might still fail.
+        # It will leave the status in started, hence prevening another run later, but the state will not match reality.
         updated_state = @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::SUCCEEDED)
 
         Result.complete(updated_state, value)
@@ -102,7 +102,6 @@ module Idempotently
     private
 
     def within_window?(state)
-      # Check if the operation is within the idempotency window
       elapsed_time = @clock.now.to_i - state.timestamp
       elapsed_time <= @window
     end

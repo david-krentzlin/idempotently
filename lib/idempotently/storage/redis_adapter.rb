@@ -40,13 +40,15 @@ module Idempotently
       end
 
       def update(idempotency_key:, status:)
-        value = connection.get(idempotency_key)
+        namespaced_key = key(idempotency_key)
+
+        value = connection.get(namespaced_key)
         raise NoSuchKeyError, "No such key: #{idempotency_key}" unless value
 
         timestamp = @clock.now.to_i
         new_value = pack(status, timestamp)
 
-        connection.set(key(idempotency_key), new_value, xx: true)
+        connection.set(namespaced_key, new_value, xx: true)
 
         State.create(idempotency_key, status, timestamp)
       end
