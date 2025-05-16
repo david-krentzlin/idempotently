@@ -9,6 +9,8 @@ require 'pry'
 require 'minitest/autorun'
 
 class TestClock
+  attr_reader :value
+
   def initialize(value = Time.now)
     @value = value
   end

@@ -38,8 +38,9 @@ module Idempotently
         value = connection.get(idempotency_key)
         raise NoSuchKeyError, "No such key: #{idempotency_key}" unless value
 
-        _, timestamp = unpack(value)
+        timestamp = @clock.now.to_i
         new_value = pack(status, timestamp)
+
         connection.set(key(idempotency_key), new_value, xx: true)
 
         State.create(idempotency_key, status, timestamp)

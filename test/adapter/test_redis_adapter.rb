@@ -52,6 +52,24 @@ class TestRedisAdapter < Minitest::Test
     assert_equal created_state.timestamp, updated_state.timestamp
   end
 
+  def test_upate_updates_the_timestamp
+    clock = TestClock.new
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL, clock: clock)
+    key = idempotency_key
+
+    created_state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
+    refute existed
+
+    clock.increment(3)
+
+    updated_state = adapter.update(idempotency_key: key, status: Idempotently::Storage::Status::SUCCEEDED)
+
+    assert_equal Idempotently::Storage::Status::SUCCEEDED, updated_state.status
+    assert_equal updated_state.key, created_state.key
+
+    assert created_state.timestamp.to_i < updated_state.timestamp.to_i
+  end
+
   def test_update_raises_error_for_nonexistent_key
     adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL)
 

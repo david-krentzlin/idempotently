@@ -37,7 +37,7 @@ module Idempotently
         existing_state = @storage[idempotency_key]
         raise NoSuchKeyError, "No such key: #{idempotency_key}" unless existing_state
 
-        updated_state = existing_state.with(status: status)
+        updated_state = existing_state.with(status: status, timestamp: @clock.now.to_i)
 
         @mutex.synchronize do
           @storage[idempotency_key] = updated_state

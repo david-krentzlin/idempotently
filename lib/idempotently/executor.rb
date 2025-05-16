@@ -60,9 +60,12 @@ module Idempotently
     # If an execution is recorded but is not within the idempotency window, it will be run again.
     #
     # @param idempotency_key [String] The idempotency key for the operation.
-    # @param operation [Proc] The operation to execute. Must be a block.
-    # @return [Idempotently::Executor::Result] The result of the operation execution.
+    # @param &operation [Proc] The block of code to execute idempotently.
+    # The proc receives one argument which is the state of the previous execution or nil if the key is new.
+    # If you the block is executed and the previous state is non nil, it means that the idempotency window has expired.
+    # In this case it's up to the caller to decide if the operation should be executed normally.
     #
+    # @return [Idempotently::Executor::Result] The result of the operation.
     def execute(idempotency_key, &operation)
       raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
       raise ArgumentError, 'no block given' unless block_given?
@@ -79,14 +82,13 @@ module Idempotently
           @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::STARTED)
         end
 
-        value = operation.call
+        value = operation.call(existed ? state : nil)
 
         updated_state = @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::SUCCEEDED)
         @logger.debug("Idempotency key #{idempotency_key} executed successfully.")
 
         Result.complete(updated_state, value)
       rescue StandardError => e
-        # TODO: trace errors
         # What about timeouts?
         @logger.error("Execution for key #{idempotency_key} failed with error: #{e.message}")
         @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::FAILED)
