@@ -31,9 +31,6 @@ jobs:
       - name: Start required services
         run: docker compose up -d
 
-      - name: Install
-        run: bundle install
-
       - name: Run tests 
         run: bundle exec rake test
 
