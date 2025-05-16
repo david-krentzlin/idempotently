@@ -12,12 +12,8 @@ class TestRedisAdapter < Minitest::Test
     redis.flushall
   end
 
-  def idempotency_key
-    SecureRandom.uuid
-  end
-
   def test_fetch_or_create_creates_new_state_in_started
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL)
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
     key = idempotency_key
 
     state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -27,7 +23,7 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_fetch_or_create_creates_existing_state
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL)
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
     key = idempotency_key
 
     state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -39,7 +35,7 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_update_changes_state_status
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL)
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
     key = idempotency_key
 
     created_state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -54,7 +50,7 @@ class TestRedisAdapter < Minitest::Test
 
   def test_upate_updates_the_timestamp
     clock = TestClock.new
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL, clock: clock)
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL }, clock: clock)
     key = idempotency_key
 
     created_state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -71,7 +67,7 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_update_raises_error_for_nonexistent_key
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL)
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
 
     assert_raises(Idempotently::Storage::Adapter::NoSuchKeyError) do
       adapter.update(idempotency_key: 'nonexistent_key', status: Idempotently::Storage::Status::SUCCEEDED)
@@ -80,7 +76,7 @@ class TestRedisAdapter < Minitest::Test
 
   def test_packs_and_unpacks_state_correctly
     clock = TestClock.new
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_url: REDIS_URL, clock: clock)
+    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL }, clock: clock)
     key = idempotency_key
 
     clock.set(1234) # fix timestamp

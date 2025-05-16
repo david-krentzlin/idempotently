@@ -8,8 +8,8 @@ module Idempotently
     include Singleton
 
     class << self
-      def register(context, storage:, window: Time, logger: Executor::NullLogger)
-        instance.add(context, Executor.new(storage: storage, window: window, logger: logger))
+      def register(context, storage:, window: Time, logger: Executor::NullLogger, clock: Time)
+        instance.add(context, Executor.new(storage: storage, window: window, logger: logger, clock: clock))
       end
 
       def for(context)
@@ -18,6 +18,10 @@ module Idempotently
     end
 
     def initialize
+      @executors = {}
+    end
+
+    def clear
       @executors = {}
     end
 

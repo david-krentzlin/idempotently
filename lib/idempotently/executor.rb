@@ -70,9 +70,9 @@ module Idempotently
       raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
       raise ArgumentError, 'no block given' unless block_given?
 
-      @logger.debug("Executing operation with idempotency key: #{idempotency_key}, window: #{@window}")
+      @logger.debug("Operation with idempotency key: #{idempotency_key}, window: #{@window}")
 
-      state, existed = @storage.fetch_or_create(idempotency_key: idempotency_key.to_s, window: @window) # may raise
+      state, existed = @storage.fetch_or_create(idempotency_key: idempotency_key.to_s, window: @window)
 
       begin
         if existed
@@ -89,7 +89,6 @@ module Idempotently
 
         Result.complete(updated_state, value)
       rescue StandardError => e
-        # What about timeouts?
         @logger.error("Execution for key #{idempotency_key} failed with error: #{e.message}")
         @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::FAILED)
         raise e

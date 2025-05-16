@@ -13,9 +13,14 @@ module Idempotently
     # The uper u56 are interpreted as the timestamp.
     # This gives us 64 bits in big endian.
     class RedisAdapter < Adapter
-      def initialize(redis_url:, namespace: '', clock: Time)
+      DEFAULT_REDIS_OPTS = {
+        url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
+        reconnect_attempts: [0, 0.25, 0.5]
+      }.freeze
+
+      def initialize(namespace: '', clock: Time, redis_opts: DEFAULT_REDIS_OPTS)
         super()
-        @url = redis_url
+        @redis_opts = redis_opts
         @namespace = namespace
         @clock = clock
       end
@@ -69,7 +74,7 @@ module Idempotently
       end
 
       def connection
-        @connection ||= Redis.new(url: @redis_url)
+        @connection ||= Redis.new(@redis_opts)
       end
     end
   end

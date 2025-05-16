@@ -7,6 +7,11 @@ require 'active_support/core_ext'
 
 require 'pry'
 require 'minitest/autorun'
+require 'securerandom'
+
+def idempotency_key
+  SecureRandom.uuid
+end
 
 class TestClock
   attr_reader :value
