@@ -26,10 +26,13 @@ module Idempotently
       end
 
       def fetch_or_create(idempotency_key:, window:)
+        raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
+        raise ArgumentError, 'window is required' if window.nil? || window.to_i <= 0
+
         timestamp = @clock.now.to_i
         value = pack(Status::STARTED, timestamp)
 
-        existing_value = connection.set(key(idempotency_key), value, get: true, nx: true, ex: window.to_i)
+        existing_value = connection.set(with_namespace(idempotency_key), value, get: true, nx: true, ex: window.to_i)
 
         if existing_value
           status, timestamp = unpack(existing_value)
@@ -40,7 +43,10 @@ module Idempotently
       end
 
       def update(idempotency_key:, status:)
-        namespaced_key = key(idempotency_key)
+        raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
+        raise ArgumentError, 'status is required' if status.nil?
+
+        namespaced_key = with_namespace(idempotency_key)
 
         value = connection.get(namespaced_key)
         raise NoSuchKeyError, "No such key: #{idempotency_key}" unless value
@@ -55,7 +61,7 @@ module Idempotently
 
       private
 
-      def key(idempotency_key)
+      def with_namespace(idempotency_key)
         return idempotency_key if @namespace.empty?
 
         "#{@namespace}:#{idempotency_key}"
