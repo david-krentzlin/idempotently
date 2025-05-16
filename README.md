@@ -50,7 +50,7 @@ You can register arbitrary execution contexts and for some storage backends it i
 backend across different executors. This is for example true for the **redis adapter**.
 
 ```ruby
-Idempotently.idempotently("my-unique-key", :execution_context) do 
+Idempotently.idempotently("my-unique-key", context: :execution_context) do 
   puts "Operation not yet executed. Will continute"
   perform_heavy_side_effect!
 end
