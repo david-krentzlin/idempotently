@@ -84,10 +84,14 @@ module Idempotently
 
         value = operation.call(existed ? state : nil)
 
+        # This might still fail. This will leave the status in started, hence prevening another run later,
+        # but the state will not match reality.
         updated_state = @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::SUCCEEDED)
-        @logger.debug("Idempotency key #{idempotency_key} executed successfully.")
 
         Result.complete(updated_state, value)
+      rescue Storage::Adapter::WriteError => e
+        @logger.error("Status update for key #{idempotency_key} failed with error: #{e.message}")
+        raise e
       rescue StandardError => e
         @logger.error("Execution for key #{idempotency_key} failed with error: #{e.message}")
         @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::FAILED)

@@ -10,8 +10,7 @@ class TestIdempotently < Minitest::Test
 
     Idempotently::ExecutorRegistry.register(:redis_integration,
                                             storage: @storage,
-                                            window: 600,
-                                            logger: Logger.new($stdout))
+                                            window: 2)
   end
 
   def teardown

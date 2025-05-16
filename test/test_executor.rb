@@ -1,19 +1,16 @@
 # frozen_string_literal: true
 
 require 'test_helper'
-require 'idempotently/storage/memory_adapter'
 require 'minitest/spec'
+require 'minitest/mock'
 require 'securerandom'
+require_relative 'memory_adapter'
 
 describe Idempotently::Executor do
-  def key
-    SecureRandom.uuid
-  end
-
   describe 'at most once semantics' do
     before do
       @clock = TestClock.new
-      @storage = Idempotently::Storage::MemoryAdapter.new(clock: @clock)
+      @storage = MemoryAdapter.new(clock: @clock)
       @executor = Idempotently::Executor.new(storage: @storage, window: 10.seconds, clock: @clock)
     end
 
@@ -21,7 +18,7 @@ describe Idempotently::Executor do
       it 'executes the operation' do
         executed = 0
 
-        @executor.execute(key) do
+        @executor.execute(idempotency_key) do
           executed += 1
         end
 
@@ -30,7 +27,7 @@ describe Idempotently::Executor do
 
       it 'returns the result of the operation' do
         executed = 0
-        result = @executor.execute(key) do
+        result = @executor.execute(idempotency_key) do
           executed += 1
           'hello world'
         end
@@ -44,7 +41,7 @@ describe Idempotently::Executor do
         executed = 0
         existing_state = nil
 
-        @executor.execute(key) do |previous_state|
+        @executor.execute(idempotency_key) do |previous_state|
           executed += 1
           existing_state = previous_state
         end
@@ -58,7 +55,7 @@ describe Idempotently::Executor do
       it 'does not execute the operation again' do
         executed = 0
         inner_result = nil
-        test_key = key
+        test_key = idempotency_key
 
         @executor.execute(test_key) do
           executed += 1
@@ -77,7 +74,7 @@ describe Idempotently::Executor do
       describe 'but the idempotency window has expired' do
         it 'does execute and timestamp is updated' do
           executed = 0
-          test_key = key
+          test_key = idempotency_key
           inner_result = nil
 
           @executor.execute(test_key) do
@@ -95,7 +92,7 @@ describe Idempotently::Executor do
 
         it 'calls block with previous_state' do
           executed = 0
-          test_key = key
+          test_key = idempotency_key
           existing_state = nil
 
           @executor.execute(test_key) do
@@ -116,7 +113,7 @@ describe Idempotently::Executor do
     describe 'when operation is marked as succeeded' do
       it 'does not execute the operation again' do
         executed = 0
-        test_key = key
+        test_key = idempotency_key
 
         result = @executor.execute(test_key) do
           executed += 1
@@ -136,7 +133,7 @@ describe Idempotently::Executor do
       describe 'but the idempotency window has expired' do
         it 'does execute and timestamp is updated' do
           executed = 0
-          test_key = key
+          test_key = idempotency_key
 
           @executor.execute(test_key) do
             executed += 1
@@ -154,7 +151,7 @@ describe Idempotently::Executor do
 
         it 'calls block with previous_state' do
           executed = 0
-          test_key = key
+          test_key = idempotency_key
           previous_state = nil
 
           @executor.execute(test_key) do |existing_state|
@@ -171,8 +168,8 @@ describe Idempotently::Executor do
             previous_state = existing_state
           end
 
-          assert_equal previous_state.key, test_key
-          assert_equal previous_state.status, Idempotently::Storage::Status::SUCCEEDED
+          assert_equal test_key, previous_state.key
+          assert_equal Idempotently::Storage::Status::SUCCEEDED, previous_state.status
         end
       end
     end
@@ -180,7 +177,7 @@ describe Idempotently::Executor do
     describe 'when operation is marked as failed' do
       it 'does not execute the operation again' do
         executed = 0
-        test_key = key
+        test_key = idempotency_key
 
         assert_raises(ArgumentError) do
           @executor.execute(test_key) do
@@ -200,7 +197,7 @@ describe Idempotently::Executor do
       describe 'but the idempotency window has expired' do
         it 'executes again and updates state' do
           executed = 0
-          test_key = key
+          test_key = idempotency_key
 
           assert_raises(ArgumentError) do
             @executor.execute(test_key) do
@@ -222,7 +219,7 @@ describe Idempotently::Executor do
 
         it 'calls block with previous_state' do
           executed = 0
-          test_key = key
+          test_key = idempotency_key
 
           assert_raises(ArgumentError) do
             @executor.execute(test_key) do
@@ -241,8 +238,54 @@ describe Idempotently::Executor do
           end
 
           assert_equal 2, executed
-          assert_equal existing_state.key, test_key
-          assert_equal existing_state.status, Idempotently::Storage::Status::FAILED
+          assert_equal test_key, existing_state.key
+          assert_equal Idempotently::Storage::Status::FAILED, existing_state.status
+        end
+      end
+    end
+
+    describe 'when errors occure' do
+      describe 'during inital creation of state' do
+        it 'does not execute, propagates the error and doesnt create any record' do
+          test_key = idempotency_key
+          executed = 0
+
+          @storage.fail_on_create = true
+
+          assert_raises(Idempotently::Storage::Adapter::WriteError) do
+            @executor.execute(test_key) do
+              executed += 1
+            end
+          end
+
+          assert_equal 0, executed
+          assert_nil @storage.get(test_key)
+        end
+      end
+
+      describe 'on update after creation' do
+        it 'does execute, status is still in progress, and propagates error' do
+          test_key = idempotency_key
+          executed = 0
+
+          assert_raises(Idempotently::Storage::Adapter::WriteError) do
+            @storage.fail_on_create = false
+            @storage.fail_on_update = Idempotently::Storage::Status::SUCCEEDED
+            @executor.execute(test_key) do
+              executed += 1
+            end
+          end
+
+          @storage.fail_on_update = false
+          @storage.fail_on_create = false
+
+          @executor.execute(test_key) do
+            executed += 1
+          end
+
+          assert_equal 1, executed
+          state = @storage.get(test_key)
+          assert_equal Idempotently::Storage::Status::STARTED, state.status
         end
       end
     end
