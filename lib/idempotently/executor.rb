@@ -1,83 +1,105 @@
 # frozen_string_literal: true
 
+require 'logger'
+
 module Idempotently
-  # The Executor class is responsible for executing operations idempotently.
+  # The Executor implements the core logic to run operations at most once within a configured idempotency window.
+  # It uses an instance of [Idempotently::Storage::Adapter] to manage the state of operations.
   class Executor
-    # The result of an operation, can have more than one state
-    Result = Data.define(:executed, :status, :return_value) do
-      # @return [Result] a result indicating that the operation has been executed
-      def self.in_progress(executed)
-        new(executed, Storage::State::STARTED, nil)
+    NullLogger = Logger.new(IO::NULL)
+
+    Result = Data.define(:state, :executed, :return_value) do
+      def self.skip(state)
+        new(state, false, nil)
       end
 
-      def self.completed_before(status)
-        new(false, status, nil)
+      def self.complete(state, return_value)
+        new(state, true, return_value)
       end
 
-      def self.completed_now(status, result)
-        new(true, status, result)
+      def operation_executed?
+        !!executed
       end
 
-      # @return [Boolean] true if the operation was executed
       def completed?
-        %i[success failure].include?(status)
+        success? || failure?
+      end
+
+      def in_progress?
+        state.status == Storage::Status::STARTED
       end
 
       def success?
-        status == Storage::State::SUCCEEDED
+        state.status == Storage::Status::SUCCEEDED
       end
 
       def failure?
-        status == Storage::State::FAILED
-      end
-
-      # @return [Boolean] true if the operation is in progress
-      def in_progress?
-        status == Storage::State::STARTED
-      end
-
-      def executed?
-        !!executed
-      end
-    end
-
-    class << self
-      def register(context, storage)
-        @executors ||= {}
-        @executors[context] = new(storage)
-      end
-
-      def for(context)
-        @executors[context] || raise(ArgumentError, "No executor registered for context: #{context}")
+        state.status == Storage::Status::FAILED
       end
     end
 
     # @param storage [Idempotently::Storage::Adapter] storage object to use for storing state
-    def initialize(storage)
+    # @param window [Integer] The idempotency window in seconds
+    # @param clock [Time] The clock to use for time operations (default: Time)
+    # @param logger [Logger] The logger to use for logging (default: NullLogger)
+    def initialize(storage:, window:, clock: Time, logger: NullLogger)
+      raise ArgumentError, 'storage is required' if storage.nil?
+      raise ArgumentError, 'window is required' if window.nil? || window.to_i <= 0
+
       @storage = storage
+      @window = window.to_i
+      @clock = clock
+      @logger = logger
     end
 
     # Executes the operation with the given idempotency key.
-    def execute(idempotency_key)
-      raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.empty?
+    # TODO: add parameter for OtelSpan
+    #
+    # Semantics:
+    # Executes the operation associated with the idempotency key, at most once within the configured idempotency window.
+    # If an execution is recorded but is not within the idempotency window, it will be run again.
+    #
+    # @param idempotency_key [String] The idempotency key for the operation.
+    # @param operation [Proc] The operation to execute. Must be a block.
+    # @return [Idempotently::Executor::Result] The result of the operation execution.
+    #
+    def execute(idempotency_key, &operation)
+      raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
       raise ArgumentError, 'no block given' unless block_given?
 
-      begin
-        existed, state = @storage.fetch_or_create(idempotency_key)
+      @logger.debug("Executing operation with idempotency key: #{idempotency_key}, window: #{@window}")
 
+      state, existed = @storage.fetch_or_create(idempotency_key: idempotency_key.to_s, window: @window) # may raise
+
+      begin
         if existed
-          return Result.in_progress if state.in_progress?
-          return Result.completed_before(state.status) if state.completed?
+          return Result.skip(state) if within_window?(state)
+
+          @logger.debug("Idempotency key #{idempotency_key} already exists with status #{state.status} but it is outside the idempotency window.")
+          @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::STARTED)
         end
 
-        result = yield
-        updated_state = @storage.update(state, Storage::State::SUCCEEDED)
-        Result.completed_now(updated_state.status, result)
+        value = operation.call
+
+        updated_state = @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::SUCCEEDED)
+        @logger.debug("Idempotency key #{idempotency_key} executed successfully.")
+
+        Result.complete(updated_state, value)
       rescue StandardError => e
-        binding.pry
-        @storage.update(state, Storage::State::FAILED) # TODO: this can fail now
+        # TODO: trace errors
+        # What about timeouts?
+        @logger.error("Execution for key #{idempotency_key} failed with error: #{e.message}")
+        @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::FAILED)
         raise e
       end
+    end
+
+    private
+
+    def within_window?(state)
+      # Check if the operation is within the idempotency window
+      elapsed_time = @clock.now.to_i - state.timestamp
+      elapsed_time <= @window
     end
   end
 end

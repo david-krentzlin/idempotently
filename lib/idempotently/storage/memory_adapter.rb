@@ -1,32 +1,49 @@
+# frozen_string_literal: true
+
+require_relative 'adapter'
+require_relative 'state'
+
 module Idempotently
   module Storage
     # Simple in-memory storage adapter for testing purposes.
     class MemoryAdapter < Adapter
-      def initialize(window:, clock: Time)
-        super(window: window)
+      def initialize(clock: Time)
+        super()
         @storage = {}
-        @clock = clock
         @mutex = Mutex.new
+        @clock = clock
       end
 
-      def fetch_or_create(idempotency_key)
+      def clear
+        @mutex.synchronize do
+          @storage = {}
+        end
+      end
+
+      def fetch_or_create(idempotency_key:, window:)
         existing_state = @storage[idempotency_key]
+        return [existing_state, true] if existing_state
 
-        return [true, existing_state[:value]] if existing_state # && existing_state[:timestamp] + @window <= @clock.now
-
-        value = State.create(idempotency_key, State::STARTED)
+        state = State.create(idempotency_key, Status::STARTED, @clock.now)
 
         @mutex.synchronize do
-          @storage[idempotency_key] = { value: value, timestamp: @clock.now }
+          @storage[idempotency_key] = state
         end
 
-        [false, value]
+        [state, false]
       end
 
-      def update(state, status)
-        State.create(state.key, status).tap do |value|
-          @storage[state.key] = { value: value, timestamp: @clock.now }
+      def update(idempotency_key:, status:)
+        existing_state = @storage[idempotency_key]
+        raise NoSuchKeyError, "No such key: #{idempotency_key}" unless existing_state
+
+        updated_state = existing_state.with(status: status)
+
+        @mutex.synchronize do
+          @storage[idempotency_key] = updated_state
         end
+
+        updated_state
       end
     end
   end
