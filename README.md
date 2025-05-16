@@ -23,7 +23,7 @@ class EmailProcessor < MessageProcessor
   include Idempotently
 
   def process
-    idempotently(message.message_id, context: :email) do |_previous_state|
+    idempotently(message.message_id, context: :email) do 
       deliver_email(payload.email)
     end
   end
