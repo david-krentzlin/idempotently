@@ -23,5 +23,21 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run the default task
-        run: bundle exec rake
+
+      - name: Upgrade Docker Compose
+        uses: docker/setup-compose-action@v1
+        with:
+          version: latest
+
+      - name: Start required services
+        run: docker compose up -d
+
+      - name: Install
+        run: bundle install
+
+      - name: Run tests 
+        run: bundle exec rake test
+
+      - name: Stop services
+        if: always()
+        run: docker compose down
