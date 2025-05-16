@@ -46,8 +46,11 @@ It requires you to pass two arguments:
 The execution context that is associated with the second argument, has to be setup / configured before it can be used.
 It provides the storage backend that is to be used, as well as specification for the `idempotency window` in seconds.
 
+You can register arbitrary execution contexts and for some storage backends it is recommended to re-use the same
+backend across different executors. This is for example true for the **redis adapter**.
+
 ```ruby
-Idempotently.idempotency("my-unique-key", :execution_context) do 
+Idempotently.idempotently("my-unique-key", :execution_context) do 
   puts "Operation not yet executed. Will continute"
   perform_heavy_side_effect!
 end
