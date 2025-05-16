@@ -28,7 +28,31 @@ class EmailProcessor < MessageProcessor
     end
   end
 end
+
 ```
+
+## API Details
+
+The library presents itself through a configuration, and a simple invocation API.
+The following gives a more details account of those two building blocks, and aims to give practical information that goes beyond the mere code documentation.
+
+The entry point for the API is the `Idempotently.idempotently` method, which you can either invoke directly or by including the module into your classes.
+It requires you to pass two arguments:
+
+1. The idempotency key, which must be provided by the caller, non-empty and has to respond to `#to_s`
+2. A symbol determining the execution context to be used for this particular invocation 
+3. A block that encapsulates the operation that performs the side-effect
+
+The execution context that is associated with the second argument, has to be setup / configured before it can be used.
+It provides the storage backend that is to be used, as well as specification for the `idempotency window` in seconds.
+
+```ruby
+Idempotently.idempotency("my-unique-key", :execution_context) do 
+  puts "Operation not yet executed. Will continute"
+  perform_heavy_side_effect!
+end
+
+````
 
 ## Guidelines on finding suitable configuration options
 
@@ -44,9 +68,6 @@ From these points, the third one needs a bit more explanation.
 It is not uncommon that operations are triggered by events in a distributed system, for example via a messaging system like RabbitMQ or Kafka.
 In this case the probability of seeing the same messages, that act as a trigger twice, decreases with the TTL of the message, as well as system settings that control
 how long transient messages are kept in flight. These can be useful indicators to pick a proper window.
-
-If you want to play it safe, you can always react domain specific in the event of reprocessing of an operation, by examaning the previous state in
-the block of the operation. Defensive implementations will not execute again and create useful logs or metrics to be informed.
 
 
 ## Development

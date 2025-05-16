@@ -61,9 +61,6 @@ module Idempotently
     #
     # @param idempotency_key [String] The idempotency key for the operation.
     # @param &operation [Proc] The block of code to execute idempotently.
-    # The proc receives one argument which is the state of the previous execution or nil if the key is new.
-    # If you the block is executed and the previous state is non nil, it means that the idempotency window has expired.
-    # In this case it's up to the caller to decide if the operation should be executed normally.
     #
     # @return [Idempotently::Executor::Result] The result of the operation.
     def execute(idempotency_key, &operation)
@@ -82,7 +79,7 @@ module Idempotently
           @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::STARTED)
         end
 
-        value = operation.call(existed ? state : nil)
+        value = operation.call
 
         # This might still fail.
         # It will leave the status in started, hence prevening another run later, but the state will not match reality.
