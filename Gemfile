@@ -7,6 +7,7 @@ gemspec
 
 gem 'minitest', '~> 5.16'
 gem 'rake', '~> 13.0'
+gem 'redis', '~> 5.4'
 
 group :development, :test do
   gem 'activesupport', '~> 8.0'

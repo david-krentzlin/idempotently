@@ -7,3 +7,21 @@ require 'active_support/core_ext'
 
 require 'pry'
 require 'minitest/autorun'
+
+class TestClock
+  def initialize(value = Time.now)
+    @value = value
+  end
+
+  def set(value)
+    @value = value
+  end
+
+  def increment(new_value)
+    @value += new_value
+  end
+
+  def now
+    @value
+  end
+end
