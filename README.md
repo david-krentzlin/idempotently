@@ -51,7 +51,7 @@ backend across different executors. This is for example true for the **redis ada
 
 ```ruby
 Idempotently.idempotently("my-unique-key", context: :execution_context) do 
-  puts "Operation not yet executed. Will continute"
+  puts "Operation not yet executed. Will continue"
   perform_heavy_side_effect!
 end
 
