@@ -13,6 +13,10 @@ module Idempotently
           reconnect_attempts: [0, 0.25, 0.5]
         }.freeze
 
+        # @param clock [Time] The clock to use for timestamps
+        # @param redis_opts [Hash] The connection options that are passed to the redis-rb client
+        # @param key_codec [Codec] The codec to use for encoding keys. Defaults to Codec::IdentityKey
+        # @param value_codec [Codec] The codec to use for encoding values. Defaults to Codec::BinaryValue
         def initialize(
           clock: Time,
           redis_opts: DEFAULT_REDIS_OPTS,

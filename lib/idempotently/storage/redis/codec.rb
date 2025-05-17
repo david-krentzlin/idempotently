@@ -1,6 +1,10 @@
+# frozen_string_literal: true
+
 module Idempotently
   module Storage
     module Redis
+      # Codecs are strategies to encode keys and values in the redis storage.
+      # They allow users with an extension point to create their own keyspace partitioning and representation of values.
       module Codec
         # Abstract class for value encoding and decoding
         class Key
@@ -24,6 +28,7 @@ module Idempotently
           end
         end
 
+        # The identity codec does not change the key or value.
         class IdentityKey < Key
           def encode(key, _timestamp, _window)
             key
@@ -34,7 +39,7 @@ module Idempotently
           end
         end
 
-        # Create namespaced keys
+        # NamespacedKey codec prefixes the key with a namespace.
         class NamespacedKey < Key
           def initialize(namespace)
             super()
@@ -54,12 +59,11 @@ module Idempotently
           end
         end
 
-        # Implement value as packed 64bit integers
-        # This gives us a compact representation for the state, that can be set atomically.
+        # BinaryValue codec encodes the value as a 64 bit packed binary.
+        # This is efficient storage suitable for most usecases.
         #
         # The lower u8 are interepreted as the state (started, succeeded, failed).
         # The uper u56 are interpreted as the timestamp.
-
         class BinaryValue < Value
           def encode(status, timestamp)
             [(status << 56) | timestamp].pack('Q>')
