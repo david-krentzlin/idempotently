@@ -40,9 +40,9 @@ module Idempotently
 
     # @param storage [Idempotently::Storage::Adapter] storage object to use for storing state
     # @param window [Integer] The idempotency window in seconds. Must respont to `#to_i` and return a positive integer.
-    # @param clock [Time] The clock to use for time operations (default: Time)
-    # @param logger [Logger] The logger to use for logging (default: NullLogger)
-    def initialize(storage:, window:, clock: Time, logger: NullLogger)
+    # @param clock [Time] The clock to use for time operations
+    # @param logger [Logger] The logger to use for logging
+    def initialize(storage:, window:, clock:, logger:)
       raise ArgumentError, 'storage is required' if storage.nil?
       raise ArgumentError, 'window is required' if window.nil? || window.to_i <= 0
 
