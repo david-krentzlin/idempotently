@@ -9,9 +9,9 @@ class TestIdempotently < Minitest::Test
     @storage = Idempotently::Storage::Redis::Adapter.new(connector: -> { Redis.new(url: REDIS_URL) },
                                                          key_codec: Idempotently::Storage::Redis::Codec::NamespacedKey.new('integration'))
 
-    Idempotently::ExecutorRegistry.register(:redis_integration,
-                                            storage: @storage,
-                                            window: 2)
+    Idempotently.configure do |config|
+      config.profile :redis_integration, storage: @storage, window: 2
+    end
   end
 
   def teardown
@@ -25,7 +25,7 @@ class TestIdempotently < Minitest::Test
     existing_state = nil
     key = idempotency_key
 
-    result = Idempotently.idempotently(key, context: :redis_integration) do |previous_state|
+    result = Idempotently.idempotently(key, profile: :redis_integration) do |previous_state|
       executed += 1
       existing_state = previous_state
     end
@@ -37,7 +37,7 @@ class TestIdempotently < Minitest::Test
     assert_nil existing_state
 
     existing_state = nil
-    result = Idempotently.idempotently(key, context: :redis_integration) do |previous_state|
+    result = Idempotently.idempotently(key, profile: :redis_integration) do |previous_state|
       executed += 1
       existing_state = previous_state
     end

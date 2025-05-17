@@ -11,7 +11,10 @@ describe Idempotently::Executor do
     before do
       @clock = TestClock.new
       @storage = MemoryAdapter.new(clock: @clock)
-      @executor = Idempotently::Executor.new(storage: @storage, window: 10.seconds, clock: @clock)
+      @executor = Idempotently::Executor.new(storage: @storage,
+                                             window: 10.seconds,
+                                             clock: @clock,
+                                             logger: Idempotently::Executor::NullLogger)
     end
 
     describe "when operation hasn't been executed" do

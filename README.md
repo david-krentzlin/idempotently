@@ -11,19 +11,20 @@ require "idempotently"
 require "idempotently/storage/redis_adapter"
 
 # Put the following into your app's configuration
-Idempotently::ExecutorRegistry
-  .register(:email, 
-            window: 3600, # 1 hour of idempotency window
-            storage: Idempotently::Storage::Redis::Adapter.new # fetches redis url from ENV['REDIS_URL']
-            logger: Logger.new($stdout))
-
+Idempotently.configure do |config|
+  config.profile :email, 
+                 storage: Idempotently::Storage::Redis::Adapter.new, # takes redis url from ENV['REDIS_URL']
+                 window: 1.hour, # 1 hour in seconds
+                 logger: Logger.new(STDOUT) 
+                  
+end
 
 # Assuming this is used in a message processor
 class EmailProcessor < MessageProcessor
   include Idempotently
 
   def process
-    idempotently(message.message_id, context: :email) do 
+    idempotently(message.message_id, profile: :email) do 
       deliver_email(payload.email)
     end
   end
@@ -40,17 +41,17 @@ The entry point for the API is the `Idempotently.idempotently` method, which you
 It requires you to pass two arguments:
 
 1. The idempotency key, which must be provided by the caller, non-empty and has to respond to `#to_s`
-2. A symbol determining the execution context to be used for this particular invocation 
+2. A symbol determining the execution profile to be used for this particular invocation 
 3. A block that encapsulates the operation that performs the side-effect
 
-The execution context that is associated with the second argument, has to be setup / configured before it can be used.
+The execution profile that is associated with the second argument, has to be setup / configured before it can be used.
 It provides the storage backend that is to be used, as well as specification for the `idempotency window` in seconds.
 
-You can register arbitrary execution contexts and for some storage backends it is recommended to re-use the same
+You can register arbitrary execution profiles and for some storage backends it is recommended to re-use the same
 backend across different executors. This is for example true for the **redis adapter**.
 
 ```ruby
-Idempotently.idempotently("my-unique-key", context: :execution_context) do 
+Idempotently.idempotently("my-unique-key", profile: :email) do 
   puts "Operation not yet executed. Will continue"
   perform_heavy_side_effect!
 end

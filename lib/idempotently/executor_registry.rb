@@ -7,16 +7,6 @@ module Idempotently
   class ExecutorRegistry
     include Singleton
 
-    class << self
-      def register(context, storage:, window: Time, logger: Executor::NullLogger, clock: Time)
-        instance.add(context, Executor.new(storage: storage, window: window, logger: logger, clock: clock))
-      end
-
-      def for(context)
-        instance.get(context)
-      end
-    end
-
     def initialize
       @executors = {}
     end
@@ -25,14 +15,14 @@ module Idempotently
       @executors = {}
     end
 
-    def add(context, executor)
-      raise ArgumentError, "Executor already registered for context: #{context}" if @executors.key?(context)
+    def register(profile, executor)
+      raise ArgumentError, "Executor already registered for profile: #{profile}" if @executors.key?(profile)
 
-      @executors[context] = executor
+      @executors[profile] = executor
     end
 
-    def get(context)
-      @executors[context] || raise(ArgumentError, "No executor registered for context: #{context}")
+    def for(profile)
+      @executors[profile] || raise(ArgumentError, "No executor registered for profile: #{profile}")
     end
   end
 end
