@@ -7,16 +7,6 @@ module Idempotently
   class ExecutorRegistry
     include Singleton
 
-    class << self
-      def register(profile, executor)
-        instance.add(profile, executor)
-      end
-
-      def for(profile)
-        instance.get(profile)
-      end
-    end
-
     def initialize
       @executors = {}
     end
@@ -25,13 +15,13 @@ module Idempotently
       @executors = {}
     end
 
-    def add(profile, executor)
+    def register(profile, executor)
       raise ArgumentError, "Executor already registered for profile: #{profile}" if @executors.key?(profile)
 
       @executors[profile] = executor
     end
 
-    def get(profile)
+    def for(profile)
       @executors[profile] || raise(ArgumentError, "No executor registered for profile: #{profile}")
     end
   end

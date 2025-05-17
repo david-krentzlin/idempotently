@@ -32,7 +32,7 @@ module Idempotently
   module_function
 
   def idempotently(idempotency_key, profile:, &operation)
-    Idempotently::ExecutorRegistry.for(profile).execute(idempotency_key, &operation)
+    Idempotently::ExecutorRegistry.instance.for(profile).execute(idempotency_key, &operation)
   end
 
   def self.configure
@@ -42,8 +42,12 @@ module Idempotently
 
   # Little DSL to configure the Idempotently gem.
   class Configurator
+    def initialize(registry = Idempotently::ExecutorRegistry.instance)
+      @registry = registry
+    end
+
     def profile(name, storage:, window:, logger: Executor::NullLogger, clock: Time)
-      ExecutorRegistry.register(
+      @registry.register(
         name,
         Executor.new(storage: storage, window: window, logger: logger, clock: clock)
       )
