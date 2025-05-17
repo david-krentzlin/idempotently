@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Idempotently
+module Once
   module Storage
     module Status
       STARTED = 0

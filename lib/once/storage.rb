@@ -1,4 +1,4 @@
-module Idempotently
+module Once
   module Storage
   end
 end

@@ -1,21 +1,21 @@
 require_relative 'test_helper'
-require 'idempotently/storage/redis'
+require 'once/storage/redis'
 
-class TestIdempotently < Minitest::Test
+class TestOnce < Minitest::Test
   REDIS_URL = 'redis://localhost:6379/2'
 
   def setup
     @clock = TestClock.new
-    @storage = Idempotently::Storage::Redis::Adapter.new(connector: -> { Redis.new(url: REDIS_URL) },
-                                                         key_codec: Idempotently::Storage::Redis::Codec::NamespacedKey.new('integration'))
+    @storage = Once::Storage::Redis::Adapter.new(connector: -> { Redis.new(url: REDIS_URL) },
+                                                 key_codec: Once::Storage::Redis::Codec::NamespacedKey.new('integration'))
 
-    Idempotently.configure do |config|
+    Once.configure do |config|
       config.profile :redis_integration, storage: @storage, window: 2
     end
   end
 
   def teardown
-    Idempotently::ExecutorRegistry.instance.clear
+    Once::ExecutorRegistry.instance.clear
     redis = Redis.new(url: REDIS_URL)
     redis.flushall
   end
@@ -23,9 +23,9 @@ class TestIdempotently < Minitest::Test
   def test_executes_successfully_only_once
     executed = 0
     existing_state = nil
-    key = idempotency_key
+    key = execution_key
 
-    result = Idempotently.idempotently(key, profile: :redis_integration) do |previous_state|
+    result = Once.run_once(key, profile: :redis_integration) do |previous_state|
       executed += 1
       existing_state = previous_state
     end
@@ -37,7 +37,7 @@ class TestIdempotently < Minitest::Test
     assert_nil existing_state
 
     existing_state = nil
-    result = Idempotently.idempotently(key, profile: :redis_integration) do |previous_state|
+    result = Once.run_once(key, profile: :redis_integration) do |previous_state|
       executed += 1
       existing_state = previous_state
     end

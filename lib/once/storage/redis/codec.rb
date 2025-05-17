@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Idempotently
+module Once
   module Storage
     module Redis
       # Codecs are strategies to encode keys and values in the redis storage.

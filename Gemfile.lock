@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    idempotently (0.1.0)
+    once (0.1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -50,8 +50,8 @@ PLATFORMS
 
 DEPENDENCIES
   activesupport (~> 8.0)
-  idempotently!
   minitest (~> 5.16)
+  once!
   pry
   rake (~> 13.0)
   redis (~> 5.4)

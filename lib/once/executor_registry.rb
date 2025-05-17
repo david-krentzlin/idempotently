@@ -2,8 +2,8 @@
 
 require 'singleton'
 
-module Idempotently
-  # The ExecutorRegistry class is responsible for managing the registration and retrieval of [Idempotently::Executor].
+module Once
+  # The ExecutorRegistry class is responsible for managing the registration and retrieval of [Once::Executor].
   class ExecutorRegistry
     include Singleton
 

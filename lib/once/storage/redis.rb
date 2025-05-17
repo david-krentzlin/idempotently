@@ -1,4 +1,4 @@
-module Idempotently
+module Once
   module Storage
     module Redis
     end

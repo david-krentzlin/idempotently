@@ -3,11 +3,11 @@ require_relative '../state'
 require_relative 'codec'
 require 'redis'
 
-module Idempotently
+module Once
   module Storage
     module Redis
       # Redis storage adapter
-      class Adapter < Idempotently::Storage::Adapter
+      class Adapter < Once::Storage::Adapter
         DEFAULT_REDIS_CONNECTOR = lambda {
           Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
                     reconnect_attempts: [0, 0.25, 0.5])
@@ -35,39 +35,39 @@ module Idempotently
           @value_codec = value_codec
         end
 
-        def fetch_or_create(idempotency_key:, window:)
-          raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
+        def fetch_or_create(execution_key:, window:)
+          raise ArgumentError, 'execution_key is required' if execution_key.nil? || execution_key.to_s.empty?
           raise ArgumentError, 'window is required' if window.nil? || window.to_i <= 0
 
           timestamp = @clock.now.to_i
           encoded_value = @value_codec.encode(Status::STARTED, timestamp)
-          encoded_key = @key_codec.encode(idempotency_key, timestamp, window)
+          encoded_key = @key_codec.encode(execution_key, timestamp, window)
 
           existing_value = connection.set(encoded_key, encoded_value, get: true, nx: true, ex: window.to_i)
 
           if existing_value
             status, timestamp = @value_codec.decode(existing_value)
-            [State.create(idempotency_key, status, timestamp), true]
+            [State.create(execution_key, status, timestamp), true]
           else
-            [State.create(idempotency_key, Status::STARTED, timestamp), false]
+            [State.create(execution_key, Status::STARTED, timestamp), false]
           end
         end
 
-        def update(idempotency_key:, status:, window:)
-          raise ArgumentError, 'idempotency_key is required' if idempotency_key.nil? || idempotency_key.to_s.empty?
+        def update(execution_key:, status:, window:)
+          raise ArgumentError, 'execution_key is required' if execution_key.nil? || execution_key.to_s.empty?
           raise ArgumentError, 'status is required' if status.nil?
 
-          encoded_key = @key_codec.encode(idempotency_key, @clock.now.to_i, window)
+          encoded_key = @key_codec.encode(execution_key, @clock.now.to_i, window)
 
           value = connection.get(encoded_key)
-          raise NoSuchKeyError, "No such key: #{idempotency_key}" unless value
+          raise NoSuchKeyError, "No such key: #{execution_key}" unless value
 
           timestamp = @clock.now.to_i
           new_value = @value_codec.encode(status, timestamp)
 
           connection.set(encoded_key, new_value, xx: true)
 
-          State.create(idempotency_key, status, timestamp)
+          State.create(execution_key, status, timestamp)
         end
 
         private
