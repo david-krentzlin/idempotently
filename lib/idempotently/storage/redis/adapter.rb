@@ -8,23 +8,28 @@ module Idempotently
     module Redis
       # Redis storage adapter
       class Adapter < Idempotently::Storage::Adapter
-        DEFAULT_REDIS_OPTS = {
-          url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
-          reconnect_attempts: [0, 0.25, 0.5]
-        }.freeze
+        DEFAULT_REDIS_CONNECTOR = lambda {
+          Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0',
+                    reconnect_attempts: [0, 0.25, 0.5])
+        }
 
         # @param clock [Time] The clock to use for timestamps
-        # @param redis_opts [Hash] The connection options that are passed to the redis-rb client
+        # @param connector [Proc] A proc that must return a redis-rb [::Redis] connection. Defaults to DEFAULT_REDIS_CONNECTOR
         # @param key_codec [Codec] The codec to use for encoding keys. Defaults to Codec::IdentityKey
         # @param value_codec [Codec] The codec to use for encoding values. Defaults to Codec::BinaryValue
         def initialize(
           clock: Time,
-          redis_opts: DEFAULT_REDIS_OPTS,
+          connector: DEFAULT_REDIS_CONNECTION,
           key_codec: Codec::IdentityKey.new,
           value_codec: Codec::BinaryValue.new
         )
           super()
-          @redis_opts = redis_opts
+          raise ArgumentError, 'connector must be a proc' unless connector.respond_to?(:call)
+          raise ArgumentError, 'key_codec must be a Codec::Key' unless key_codec.is_a?(Codec::Key)
+          raise ArgumentError, 'value_codec must be a Codec::Value' unless value_codec.is_a?(Codec::Value)
+          raise ArgumentError, 'clock must respond to now' unless clock.respond_to?(:now)
+
+          @connector = connector
           @clock = clock
           @key_codec = key_codec
           @value_codec = value_codec
@@ -68,7 +73,7 @@ module Idempotently
         private
 
         def connection
-          @connection ||= ::Redis.new(@redis_opts)
+          @connection ||= @connector.call
         end
       end
     end
