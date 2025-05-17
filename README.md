@@ -8,7 +8,7 @@ It provides a simple API to wrap operations that must run **at most once**, even
 
 ```ruby
 require "idempotently"
-require "idempotently/storage/redis_adapter"
+require "idempotently/storage/redis"
 
 # Put the following into your app's configuration
 Idempotently.configure do |config|
