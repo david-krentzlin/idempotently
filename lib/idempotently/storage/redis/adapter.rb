@@ -70,6 +70,10 @@ module Idempotently
           State.create(idempotency_key, status, timestamp)
         end
 
+        def garbage_collect!(now:, window:)
+          @logger.debug('Garbage collection not implemented for standard redis adapter')
+        end
+
         private
 
         def connection
