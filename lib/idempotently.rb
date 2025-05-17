@@ -12,25 +12,41 @@ require_relative 'idempotently/executor_registry'
 # Example usage:
 #
 # ```ruby
-# Idempotently.idempotently(unique_key, context: :messaging) do
+# Idempotently.idempotently(unique_key, profile: :messaging) do
 #   deliver_email
 # end
 # ```
 module Idempotently
-  module_function
-
-  # Executes a block of code idempotently using the provided idempotency key and context.
+  # Executes a block of code idempotently using the provided idempotency key and profile.
   #
   # @param idempotency_key [String] The unique key for the operation.
   #
-  # @param context [Symbol] The context in which the operation is executed. This must be a symbol that matches a registered context.
-  # See also [Idempotently::ExecutorRegistry] for more details on how the context is registered.
+  # @param profile [Symbol] The profile in which the operation is executed. This must be a symbol that matches a registered profile.
+  # See also [Idempotently::ExecutorRegistry] for more details on how the profile is registered.
   #
   # @param &operation [Proc] The block of code to execute idempotently.
   # See also [Idempotently::Executor] for more details on how the idempotency is managed.
   #
   # @return [Idempotently::Executor::Result] The result of the operation.
-  def idempotently(idempotency_key, context:, &operation)
-    Idempotently::ExecutorRegistry.for(context).execute(idempotency_key, &operation)
+
+  module_function
+
+  def idempotently(idempotency_key, profile:, &operation)
+    Idempotently::ExecutorRegistry.for(profile).execute(idempotency_key, &operation)
+  end
+
+  def self.configure
+    configurator = Configurator.new
+    yield(configurator)
+  end
+
+  # Little DSL to configure the Idempotently gem.
+  class Configurator
+    def profile(name, storage:, window:, logger: Executor::NullLogger, clock: Time)
+      ExecutorRegistry.register(
+        name,
+        Executor.new(storage: storage, window: window, logger: logger, clock: clock)
+      )
+    end
   end
 end
