@@ -1,12 +1,13 @@
 require_relative 'test_helper'
-require 'idempotently/storage/redis_adapter'
+require 'idempotently/storage/redis'
 
 class TestIdempotently < Minitest::Test
   REDIS_URL = 'redis://localhost:6379/2'
 
   def setup
     @clock = TestClock.new
-    @storage = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL }, namespace: 'integration')
+    @storage = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL },
+                                                         key_codec: Idempotently::Storage::Redis::Codec::NamespacedKey.new('integration'))
 
     Idempotently::ExecutorRegistry.register(:redis_integration,
                                             storage: @storage,
