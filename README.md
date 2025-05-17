@@ -11,12 +11,13 @@ require "idempotently"
 require "idempotently/storage/redis_adapter"
 
 # Put the following into your app's configuration
-Idempotently::ExecutorRegistry
-  .register(:email, 
-            window: 3600, # 1 hour of idempotency window
-            storage: Idempotently::Storage::Redis::Adapter.new # fetches redis url from ENV['REDIS_URL']
-            logger: Logger.new($stdout))
-
+Idempotently.configure do |config|
+  config.profile :email, 
+                 storage: Idempotently::Storage::Redis::Adapter.new, # takes redis url from ENV['REDIS_URL']
+                 window: 1.hour, # 1 hour in seconds
+                 logger: Logger.new(STDOUT) 
+                  
+end
 
 # Assuming this is used in a message processor
 class EmailProcessor < MessageProcessor
