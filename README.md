@@ -14,7 +14,7 @@ require "idempotently/storage/redis_adapter"
 Idempotently::ExecutorRegistry
   .register(:email, 
             window: 3600, # 1 hour of idempotency window
-            storage: Idempotently::Storage::RedisAdapter.new(redis_opts: { url: ENV['REDIS_URL'] }, namespace: 'myapp'),
+            storage: Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: ENV['REDIS_URL'] }),
             logger: Logger.new($stdout))
 
 
