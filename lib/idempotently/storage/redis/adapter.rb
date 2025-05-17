@@ -19,7 +19,7 @@ module Idempotently
         # @param value_codec [Codec] The codec to use for encoding values. Defaults to Codec::BinaryValue
         def initialize(
           clock: Time,
-          connector: DEFAULT_REDIS_CONNECTION,
+          connector: DEFAULT_REDIS_CONNECTOR,
           key_codec: Codec::IdentityKey.new,
           value_codec: Codec::BinaryValue.new
         )
