@@ -40,7 +40,7 @@ class MemoryAdapter < Idempotently::Storage::Adapter
     [state, false]
   end
 
-  def update(idempotency_key:, status:)
+  def update(idempotency_key:, status:, window:)
     if fail_on_update && status == fail_on_update
       raise Idempotently::Storage::Adapter::WriteError,
             'forced error on update'

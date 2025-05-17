@@ -76,14 +76,15 @@ module Idempotently
           return Result.skip(state) if within_window?(state)
 
           @logger.debug("Idempotency key #{idempotency_key} already exists with status #{state.status} but it is outside the idempotency window.")
-          @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::STARTED)
+          @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::STARTED, window: @window)
         end
 
         value = operation.call
 
         # This might still fail.
         # It will leave the status in started, hence prevening another run later, but the state will not match reality.
-        updated_state = @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::SUCCEEDED)
+        updated_state = @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::SUCCEEDED,
+                                        window: @window)
 
         Result.complete(updated_state, value)
       rescue Storage::Adapter::WriteError => e
@@ -91,7 +92,7 @@ module Idempotently
         raise e
       rescue StandardError => e
         @logger.error("Execution for key #{idempotency_key} failed with error: #{e.message}")
-        @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::FAILED)
+        @storage.update(idempotency_key: idempotency_key.to_s, status: Storage::Status::FAILED, window: @window)
         raise e
       end
     end

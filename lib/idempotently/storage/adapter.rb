@@ -21,10 +21,11 @@ module Idempotently
       # @abstract
       # @param idempotency_key [String] The idempotency key. Must be non-empty.
       # @param status [Integer] Must be one of the defined statuses in Idempotently::Storage::Status.
+      # @param window [Integer] The time idempotency window in seconds.
       # @return [Idempotently::Storage::State] The updated state.
       #
       # Must raise [Idempotently::Storage::Adapter::NoSuchKeyError] if the key does not exist.
-      def update(idempotency_key:, status:)
+      def update(idempotency_key:, status:, window:)
         raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
       end
     end

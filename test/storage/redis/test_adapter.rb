@@ -1,7 +1,7 @@
 require 'test_helper'
 
 require 'idempotently'
-require 'idempotently/storage/redis_adapter'
+require 'idempotently/storage/redis'
 require 'securerandom'
 
 class TestRedisAdapter < Minitest::Test
@@ -16,7 +16,7 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_fetch_or_create_creates_new_state_in_started
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
+    adapter = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL })
     key = idempotency_key
 
     state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -26,7 +26,7 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_fetch_or_create_creates_existing_state
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
+    adapter = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL })
     key = idempotency_key
 
     state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -38,13 +38,15 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_update_changes_state_status
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
+    adapter = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL })
     key = idempotency_key
 
     created_state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
     refute existed
 
-    updated_state = adapter.update(idempotency_key: key, status: Idempotently::Storage::Status::SUCCEEDED)
+    updated_state = adapter.update(idempotency_key: key,
+                                   status: Idempotently::Storage::Status::SUCCEEDED,
+                                   window: 10.seconds)
 
     assert_equal Idempotently::Storage::Status::SUCCEEDED, updated_state.status
     assert_equal updated_state.key, created_state.key
@@ -53,7 +55,7 @@ class TestRedisAdapter < Minitest::Test
 
   def test_upate_updates_the_timestamp
     clock = TestClock.new
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL }, clock: clock)
+    adapter = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL }, clock: clock)
     key = idempotency_key
 
     created_state, existed = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
@@ -61,7 +63,9 @@ class TestRedisAdapter < Minitest::Test
 
     clock.increment(3)
 
-    updated_state = adapter.update(idempotency_key: key, status: Idempotently::Storage::Status::SUCCEEDED)
+    updated_state = adapter.update(idempotency_key: key,
+                                   status: Idempotently::Storage::Status::SUCCEEDED,
+                                   window: 10.seconds)
 
     assert_equal Idempotently::Storage::Status::SUCCEEDED, updated_state.status
     assert_equal updated_state.key, created_state.key
@@ -70,16 +74,18 @@ class TestRedisAdapter < Minitest::Test
   end
 
   def test_update_raises_error_for_nonexistent_key
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL })
+    adapter = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL })
 
     assert_raises(Idempotently::Storage::Adapter::NoSuchKeyError) do
-      adapter.update(idempotency_key: 'nonexistent_key', status: Idempotently::Storage::Status::SUCCEEDED)
+      adapter.update(idempotency_key: 'nonexistent_key',
+                     status: Idempotently::Storage::Status::SUCCEEDED,
+                     window: 10.seconds)
     end
   end
 
   def test_packs_and_unpacks_state_correctly
     clock = TestClock.new
-    adapter = Idempotently::Storage::RedisAdapter.new(redis_opts: { url: REDIS_URL }, clock: clock)
+    adapter = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL }, clock: clock)
     key = idempotency_key
 
     clock.set(1234) # fix timestamp
@@ -89,15 +95,21 @@ class TestRedisAdapter < Minitest::Test
     assert_equal Idempotently::Storage::Status::STARTED, state.status
     assert_equal 1234, state.timestamp
 
-    updated_state, = adapter.update(idempotency_key: key, status: Idempotently::Storage::Status::FAILED)
+    updated_state, = adapter.update(idempotency_key: key,
+                                    status: Idempotently::Storage::Status::FAILED,
+                                    window: 10.seconds)
 
     assert_equal Idempotently::Storage::Status::FAILED, updated_state.status
     assert_equal 1234, updated_state.timestamp
   end
 
-  def test_namespace_works_correctly
+  def test_namespacecodec_works_correctly
     clock = TestClock.new
-    adapter = Idempotently::Storage::RedisAdapter.new(namespace: 'test', redis_opts: { url: REDIS_URL }, clock: clock)
+    adapter = Idempotently::Storage::Redis::Adapter.new(
+      key_codec: Idempotently::Storage::Redis::Codec::NamespacedKey.new('test'),
+      redis_opts: { url: REDIS_URL },
+      clock: clock
+    )
     key = idempotency_key
 
     state, = adapter.fetch_or_create(idempotency_key: key, window: 10.seconds)
