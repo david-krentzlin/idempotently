@@ -6,7 +6,7 @@ class TestIdempotently < Minitest::Test
 
   def setup
     @clock = TestClock.new
-    @storage = Idempotently::Storage::Redis::Adapter.new(redis_opts: { url: REDIS_URL },
+    @storage = Idempotently::Storage::Redis::Adapter.new(connector: -> { Redis.new(url: REDIS_URL) },
                                                          key_codec: Idempotently::Storage::Redis::Codec::NamespacedKey.new('integration'))
 
     Idempotently::ExecutorRegistry.register(:redis_integration,
