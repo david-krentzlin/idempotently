@@ -8,6 +8,8 @@ module Idempotently
       WriteError = Class.new(StandardError)
       NoSuchKeyError = Class.new(StandardError)
 
+      # Fetch the state of the idempotency key if it already exists or create a new state.
+      #
       # @abstract
       # @param idempotency_key [String] The idempotency key. Must be non-empty.
       # @param window [Integer] The time idempotency window in seconds.
@@ -18,6 +20,8 @@ module Idempotently
         raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
       end
 
+      # Update the state of the idempotency key.
+      #
       # @abstract
       # @param idempotency_key [String] The idempotency key. Must be non-empty.
       # @param status [Integer] Must be one of the defined statuses in Idempotently::Storage::Status.
@@ -26,6 +30,18 @@ module Idempotently
       #
       # Must raise [Idempotently::Storage::Adapter::NoSuchKeyError] if the key does not exist.
       def update(idempotency_key:, status:, window:)
+        raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+      end
+
+      # Entry point for garbage collection of storage.
+      # Most storage system will need to implement this, to make sure that memory is eventually freed.
+      #
+      # @abstract
+      # @param now [Time] The current time. This might not be the same as current wallclock time, to allow
+      # simulating time travel for early cleanup, but also for windowed cleanup.
+      #
+      # @param window [Integer] The time idempotency window in seconds.
+      def garbage_collect!(now:, window:)
         raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
       end
     end
