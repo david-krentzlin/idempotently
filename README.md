@@ -1,4 +1,4 @@
-# Oncd
+# Once
 
 A focused, extensible ruby library to help teams to establish at-most once semantics for side-effecting code — especially in distributed systems, messaging pipelines, and service integrations.
 
